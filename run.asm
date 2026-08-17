@@ -14,6 +14,8 @@ section .data
     argv_server dq server_str, 0
     env_path    db "PATH=/usr/bin:/bin", 0
     envp        dq env_path, 0
+    clear_seq   db 27, '[', '2', 'J', 27, '[', 'H'   ; ANSI clear screen + cursor home
+    clear_seq_len equ $ - clear_seq
 
 section .bss
     wait_status resq 1
@@ -79,12 +81,19 @@ cli_git_clone:
     call cli_exec
     ret
 
-; cli_run_dev() - build, then exec the server (never returns on success)
+; cli_run_dev() - build, clear the console, then exec the server
+; (never returns on success)
 global cli_run_dev
 cli_run_dev:
     call cli_run_build
     test rax, rax
     jnz .build_failed
+    ; clear screen so only the server banner shows
+    mov rax, SYS_write
+    mov rdi, 1
+    lea rsi, [clear_seq]
+    mov rdx, clear_seq_len
+    syscall
     mov rax, SYS_execve
     lea rdi, [path_server]
     lea rsi, [argv_server]
