@@ -1,4 +1,4 @@
-; cli/run.asm - build & dev commands (fork + exec, no libc)
+; cli/run.asm - build, dev and git clone commands (fork + exec, no libc)
 
 %include "syscalls.inc"
 
@@ -6,6 +6,9 @@ section .data
     path_make   db "/usr/bin/make", 0
     make_str    db "make", 0
     argv_make   dq make_str, 0
+    path_git    db "/usr/bin/git", 0
+    git_str     db "git", 0
+    clone_str   db "clone", 0
     path_server db "./build/server", 0
     server_str  db "./build/server", 0
     argv_server dq server_str, 0
@@ -14,20 +17,24 @@ section .data
 
 section .bss
     wait_status resq 1
+    argv_buf    resq 8
 
 section .text
 
-; cli_run_build() -> rax = make exit code
-global cli_run_build
-cli_run_build:
+; cli_exec(rdi = path, rsi = argv) -> rax = exit code
+cli_exec:
+    push r12
+    push r13
+    mov r12, rdi            ; path
+    mov r13, rsi            ; argv
     mov rax, SYS_fork
     syscall
     test rax, rax
     jnz .parent
-    ; child: exec make
+    ; child: exec
     mov rax, SYS_execve
-    lea rdi, [path_make]
-    lea rsi, [argv_make]
+    mov rdi, r12
+    mov rsi, r13
     lea rdx, [envp]
     syscall
     mov rax, SYS_exit
@@ -44,6 +51,32 @@ cli_run_build:
     mov rax, [wait_status]
     shr rax, 8
     and rax, 0xFF
+    pop r13
+    pop r12
+    ret
+
+; cli_run_build() -> rax = make exit code
+global cli_run_build
+cli_run_build:
+    lea rdi, [path_make]
+    lea rsi, [argv_make]
+    call cli_exec
+    ret
+
+; cli_git_clone(rdi = url, rsi = dir) -> rax = 0 ok, else git exit code
+global cli_git_clone
+cli_git_clone:
+    lea rax, [argv_buf]
+    lea rbx, [git_str]
+    mov [rax], rbx
+    lea rbx, [clone_str]
+    mov [rax + 8], rbx
+    mov [rax + 16], rdi    ; url
+    mov [rax + 24], rsi    ; dir
+    mov qword [rax + 32], 0
+    lea rdi, [path_git]
+    lea rsi, [argv_buf]
+    call cli_exec
     ret
 
 ; cli_run_dev() - build, then exec the server (never returns on success)

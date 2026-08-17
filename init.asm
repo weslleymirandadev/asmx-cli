@@ -1,23 +1,21 @@
 ; cli/init.asm - asmx_init: scaffold a new project in the CWD.
-; Extracts the embedded framework into <name>/ and writes the boilerplate
-; (src/main.asm, src/app/api/hello/route.s, zero-maintenance Makefile).
+; 1) git clone <url> <name>   (the asmx framework, from GitHub by default)
+; 2) boilerplate: src/main.asm, src/app/api/hello/route.s, Makefile
 
 %include "syscalls.inc"
 
-extern __start_pkg_manifest
-extern __stop_pkg_manifest
-extern cli_mkdir_p
+extern cli_git_clone
 extern cli_write_file
+extern cli_mkdir_p
 extern cli_strlen
 extern cli_strcpy
 
 section .bss
     path_buf resb 1024
-    dir_buf  resb 1024
 
 section .text
 
-; asmx_init(rdi = package name) -> rax = 0
+; asmx_init(rdi = package name, rsi = git url) -> rax = 0 ok, -1 err
 global asmx_init
 asmx_init:
     push rbx
@@ -26,57 +24,19 @@ asmx_init:
     push r14
     push r15
     mov r12, rdi            ; pkg name
-    mov r13, __start_pkg_manifest
-    mov r14, __stop_pkg_manifest
+    mov r13, rsi            ; url
 
     ; boilerplate dirs
     lea rdi, [dir_src_hello]
     call cli_mkdir_p        ; src/app/api/hello
 
-    ; extract framework files
-.entry_loop:
-    cmp r13, r14
-    jge .entries_done
-    ; dest = "<pkg>/<rel>" in path_buf
-    lea rdi, [path_buf]
+    ; fetch the framework: git clone <url> <name>
+    mov rdi, r13
     mov rsi, r12
-    call cli_strcpy
-    mov rdi, path_buf
-    call cli_strlen
-    lea rdi, [path_buf + rax]
-    mov byte [rdi], '/'
-    inc rdi
-    mov rsi, [r13 + 16]     ; rel path ptr
-    call cli_strcpy
-    ; dirname: truncate path_buf at the last '/'
-    mov rdi, path_buf
-    call cli_strlen
-    lea rbx, [path_buf + rax]
-.dir_loop:
-    cmp rbx, path_buf
-    jbe .dir_root
-    dec rbx
-    cmp byte [rbx], '/'
-    je .dir_found
-    jmp .dir_loop
-.dir_root:
-    lea rbx, [path_buf]
-.dir_found:
-    mov byte [rbx], 0
-    mov rdi, dir_buf
-    lea rsi, [path_buf]
-    call cli_strcpy
-    mov rdi, dir_buf
-    call cli_mkdir_p
-    mov byte [rbx], '/'
-    ; write the file
-    mov rdi, path_buf
-    mov rsi, [r13]          ; data ptr
-    mov rdx, [r13 + 8]      ; len
-    call cli_write_file
-    add r13, 24
-    jmp .entry_loop
-.entries_done:
+    call cli_git_clone
+    test rax, rax
+    jnz .err
+
     ; boilerplate files
     lea rdi, [path_main]
     lea rsi, [tpl_main]
@@ -86,7 +46,8 @@ asmx_init:
     lea rsi, [tpl_route]
     mov rdx, tpl_route_len
     call cli_write_file
-    ; Makefile: mount "<mk1><pkg><mk2>" in path_buf
+
+    ; Makefile: mount "<mk1><name><mk2>" in path_buf
     lea rdi, [path_buf]
     lea rsi, [tpl_mk1]
     call cli_strcpy
@@ -106,7 +67,12 @@ asmx_init:
     lea rdi, [path_makefile]
     lea rsi, [path_buf]
     call cli_write_file
+
     xor rax, rax
+    jmp .done
+.err:
+    mov rax, -1
+.done:
     pop r15
     pop r14
     pop r13
