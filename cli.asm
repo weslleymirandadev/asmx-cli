@@ -1,10 +1,9 @@
 ; cli/cli.asm - asmx CLI:
-;   asmx init [name] [url]   scaffold a project: clone the asmx
-;                            framework (default url compiled in) +
-;                            boilerplate
-;   asmx build               compile the app
-;   asmx dev                 compile and run
-;   asmx                     show help
+;   asmx init [name]   scaffold a project: clone the asmx framework
+;                      (compiled-in url) + boilerplate
+;   asmx build         compile the app
+;   asmx dev           compile and run
+;   asmx               show help
 
 %include "syscalls.inc"
 
@@ -21,12 +20,12 @@ section .data
     cmd_dev     db "dev", 0
     help_text   db "asmx - assembly web framework CLI", 10
                 db "usage:", 10
-                db "  asmx init [name] [url]   create a project: clones the asmx framework", 10
-                db "                           into name/ and scaffolds", 10
-                db "                           src/main.asm, src/app/api/hello/route.s, Makefile", 10
-                db "  asmx build               compile the app", 10
-                db "  asmx dev                 compile and run", 10
-                db "  asmx                     show this help", 10, 0
+                db "  asmx init [name]   create a project: clones the asmx framework", 10
+                db "                     into name/ and scaffolds", 10
+                db "                     src/main.asm, src/app/api/hello/route.s, Makefile", 10
+                db "  asmx build         compile the app", 10
+                db "  asmx dev           compile and run", 10
+                db "  asmx               show this help", 10, 0
     help_len equ $ - help_text - 1
 
 section .text
@@ -54,23 +53,16 @@ _start:
     jz .do_dev
     jmp .help
 .do_init:
-    ; name = argv[2] or "asmx"; url = argv[3] or GitHub default
+    ; name = argv[2] or "asmx"; url = compiled-in default
     cmp r13, 2
     jg .init_name
     lea r14, [default_pkg]
-    jmp .init_url
+    jmp .init_go
 .init_name:
     mov r14, [r12 + 16]
-.init_url:
-    cmp r13, 3
-    jg .init_url_arg
-    lea r15, [default_url]
-    jmp .init_go
-.init_url_arg:
-    mov r15, [r12 + 24]
 .init_go:
     mov rdi, r14
-    mov rsi, r15
+    lea rsi, [default_url]
     call asmx_init
     jmp .exit0
 .do_build:
