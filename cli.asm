@@ -1,8 +1,9 @@
-; cli/cli.asm - asmx CLI (npm-style):
-;   asmx init [name] [url]   scaffold a project: git clone the asmx
-;                            framework (GitHub by default) + boilerplate
+; cli/cli.asm - asmx CLI:
+;   asmx init [name] [url]   scaffold a project: clone the asmx
+;                            framework (default url compiled in) +
+;                            boilerplate
 ;   asmx build               compile the app
-;   asmx dev                 compile and run (npm run dev)
+;   asmx dev                 compile and run
 ;   asmx                     show help
 
 %include "syscalls.inc"
@@ -21,10 +22,10 @@ section .data
     help_text   db "asmx - assembly web framework CLI", 10
                 db "usage:", 10
                 db "  asmx init [name] [url]   create a project: clones the asmx framework", 10
-                db "                           (GitHub default) into name/ and scaffolds", 10
+                db "                           into name/ and scaffolds", 10
                 db "                           src/main.asm, src/app/api/hello/route.s, Makefile", 10
                 db "  asmx build               compile the app", 10
-                db "  asmx dev                 compile and run (npm run dev)", 10
+                db "  asmx dev                 compile and run", 10
                 db "  asmx                     show this help", 10, 0
     help_len equ $ - help_text - 1
 
