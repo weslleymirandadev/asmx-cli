@@ -11,7 +11,7 @@ extern cli_strlen
 extern cli_strcpy
 
 section .bss
-    path_buf resb 1024
+    path_buf resb 4096
 
 section .text
 
@@ -113,7 +113,10 @@ section .data
     tpl_mk2 db 10
             db "ASFLAGS := -f elf64 -I $(PKG) -I src", 10
             db "BUILD   := build", 10
-            db "TARGET  := $(BUILD)/server", 10, 10
+            db "TARGET  := $(BUILD)/server", 10
+            db "WAT2WASM ?= $(HOME)/tools/wabt/bin/wat2wasm", 10
+            db "UI_SRCS := $(shell find src/ui -name '*.wat' 2>/dev/null)", 10
+            db "UI_LIB  := $(PKG)/wasm/ui.wat", 10, 10
             db "# Zero-maintenance: every .asm in the package and every .asm/.s under src/", 10
             db "# is picked up automatically. No Makefile edits for new folders or routes.", 10
             db "PKG_SRCS := $(shell find $(PKG) -name '*.asm')", 10
@@ -126,7 +129,13 @@ section .data
             db "#   src/app/page.s -> / | src/app/sobre/page.s -> /sobre |", 10
             db "#   src/app/api/hello/route.s -> /api/hello | src/app/not-found.s -> /__not_found", 10
             db "route_path = $(if $(filter src/app/not-found.s,$1),/__not_found,$(if $(filter src/app/page.s src/app/route.s,$1),/,$(patsubst src/app/%/page.s,/%,$(patsubst src/app/%/route.s,/%,$1))))", 10, 10
-            db "all: $(TARGET)", 10, 10
+            db "all: $(TARGET) $(UI_SRCS:src/ui/%.wat=public/%.wasm)", 10, 10
+            db "# WebAssembly frontend: src/ui/*.wat -> public/*.wasm (path derives from the", 10
+            db "# file; lib.wat with the UI macros is included into every module)", 10
+            db "public/%.wasm: src/ui/%.wat $(UI_LIB) | public", 10
+            db 9, '{ echo "(module"; cat $(UI_LIB); cat $<; echo ")"; } | $(WAT2WASM) - -o $@', 10, 10
+            db "public:", 10
+            db 9, "mkdir -p public", 10, 10
             db "$(TARGET): $(OBJS)", 10
             db 9, "$(LD) -o $@ $^", 10, 10
             db "$(BUILD)/$(PKG)/%.o: $(PKG)/%.asm | $(BUILD)", 10
