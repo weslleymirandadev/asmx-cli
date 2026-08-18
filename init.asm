@@ -164,7 +164,9 @@ section .data
             db 9, "@mkdir -p $(dir $@)", 10
             db 9, "$(AS) $(ASFLAGS) -o $(BUILD)/tools/ui-compile.o $<", 10
             db 9, "$(LD) -o $@ $(BUILD)/tools/ui-compile.o", 10, 10
-            db "$(BUILD)/%.s: src/%.s $(UI_CP) | $(BUILD)", 10
+            db "# @comp components (src/components/*.s): any change rebuilds every page.s", 10
+            db "COMP_SRCS := $(wildcard src/components/*.s)", 10
+            db "$(BUILD)/%.s: src/%.s $(UI_CP) $(COMP_SRCS) | $(BUILD)", 10
             db 9, "@mkdir -p $(dir $@)", 10
             db 9, "$(UI_CP) $< $@", 10, 10
             db "$(BUILD)/%.o: $(BUILD)/%.s | $(BUILD)", 10
