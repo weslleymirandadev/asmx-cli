@@ -116,7 +116,7 @@ section .data
             db "TARGET  := $(BUILD)/server", 10
             db "WAT2WASM ?= $(HOME)/tools/wabt/bin/wat2wasm", 10
             db "UI_SRCS := $(shell find src/ui -name '*.wat' 2>/dev/null)", 10
-            db "UI_LIB  := $(PKG)/wasm/ui.wat", 10, 10
+            db "UI_LIB  := $(PKG)/wasm/draw.wat $(PKG)/wasm/text.wat $(PKG)/wasm/widgets.wat $(PKG)/wasm/components.wat", 10, 10
             db "# Zero-maintenance: every .asm in the package and every .asm/.s under src/", 10
             db "# is picked up automatically. No Makefile edits for new folders or routes.", 10
             db "PKG_SRCS := $(shell find $(PKG) -name '*.asm')", 10
@@ -131,9 +131,11 @@ section .data
             db "route_path = $(if $(filter src/app/not-found.s,$1),/__not_found,$(if $(filter src/app/page.s src/app/route.s,$1),/,$(patsubst src/app/%/page.s,/%,$(patsubst src/app/%/route.s,/%,$1))))", 10, 10
             db "all: $(TARGET) $(UI_SRCS:src/ui/%.wat=public/%.wasm)", 10, 10
             db "# WebAssembly frontend: src/ui/*.wat -> public/*.wasm (path derives from the", 10
-            db "# file; lib.wat with the UI macros is included into every module)", 10
-            db "public/%.wasm: src/ui/%.wat $(UI_LIB) | public", 10
-            db 9, '{ echo "(module"; cat $(UI_LIB); cat $<; echo ")"; } | $(WAT2WASM) - -o $@', 10, 10
+            db "# file). A module = framework lib (draw/text/widgets/components) + EVERY", 10
+            db "# component in src/ui/ in one (module ...): components call each other", 10
+            db "# across files (composition, like %include in NASM)", 10
+            db "public/%.wasm: src/ui/%.wat $(UI_SRCS) $(UI_LIB) | public", 10
+            db 9, '{ echo "(module"; cat $(UI_LIB) $(UI_SRCS); echo ")"; } | $(WAT2WASM) - -o $@', 10, 10
             db "public:", 10
             db 9, "mkdir -p public", 10, 10
             db "$(TARGET): $(OBJS)", 10
