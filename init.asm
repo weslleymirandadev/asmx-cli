@@ -91,7 +91,7 @@ section .data
              db "section .text", 10
              db "global _start", 10
              db "_start:", 10
-             db "    listen 8080", 10
+             db "    asmx.listen 8080", 10
              db "    jmp route_dispatch", 10, 0
     tpl_main_len equ $ - tpl_main - 1
 
@@ -99,11 +99,11 @@ section .data
               db '%include "asmx.inc"', 10, 10
               db "section .data", 10
               db "    hello db '{" , 34, "hello" , 34, ": " , 34, "world" , 34, "}', 0", 10, 10
-              db "route get_hello, 0", 10, 10
+              db "route.get get_hello", 10, 10
               db "section .GET", 10
               db "get_hello:", 10
-              db "    send_json hello", 10
-              db "    jmp requests", 10, 0
+              db "    res.json hello", 10
+              db "    asmx.next", 10, 0
     tpl_route_len equ $ - tpl_route - 1
 
     tpl_mk1 db "AS      := nasm", 10
