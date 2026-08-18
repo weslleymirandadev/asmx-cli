@@ -98,8 +98,8 @@ section .data
     tpl_route db "; src/app/api/hello/route.s", 10
               db '%include "asmx.inc"', 10, 10
               db "section .data", 10
-              db "    hello db '{", 34, "hello", 34, ": ", 34, "world", 34, "}', 0", 10, 10
-              db 'route "/api/hello", get_hello, 0', 10, 10
+              db "    hello db '{" , 34, "hello" , 34, ": " , 34, "world" , 34, "}', 0", 10, 10
+              db "route get_hello, 0", 10, 10
               db "section .GET", 10
               db "get_hello:", 10
               db "    send_json hello", 10
@@ -122,6 +122,10 @@ section .data
             db "PKG_OBJS := $(PKG_SRCS:$(PKG)/%.asm=$(BUILD)/$(PKG)/%.o)", 10
             db "APP_OBJS := $(APP_ASM:src/%.asm=$(BUILD)/%.o) $(APP_S:src/%.s=$(BUILD)/%.o)", 10
             db "OBJS     := $(PKG_OBJS) $(APP_OBJS)", 10, 10
+            db "# Next.js-style routing: route path derives from file location", 10
+            db "#   src/app/page.s -> / | src/app/sobre/page.s -> /sobre |", 10
+            db "#   src/app/api/hello/route.s -> /api/hello | src/app/not-found.s -> /__not_found", 10
+            db "route_path = $(if $(filter src/app/not-found.s,$1),/__not_found,$(if $(filter src/app/page.s src/app/route.s,$1),/,$(patsubst src/app/%/page.s,/%,$(patsubst src/app/%/route.s,/%,$1))))", 10, 10
             db "all: $(TARGET)", 10, 10
             db "$(TARGET): $(OBJS)", 10
             db 9, "$(LD) -o $@ $^", 10, 10
@@ -133,7 +137,7 @@ section .data
             db 9, "$(AS) $(ASFLAGS) -o $@ $<", 10, 10
             db "$(BUILD)/%.o: src/%.s | $(BUILD)", 10
             db 9, "@mkdir -p $(dir $@)", 10
-            db 9, "$(AS) $(ASFLAGS) -o $@ $<", 10, 10
+            db 9, "$(AS) $(ASFLAGS) -DROUTE_PATH=", 92, 34, "$(call route_path,$<)", 92, 34, " -o $@ $<", 10, 10
             db "$(BUILD):", 10
             db 9, "mkdir -p $(BUILD)", 10, 10
             db "run: $(TARGET)", 10
