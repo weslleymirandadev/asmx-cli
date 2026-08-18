@@ -91,7 +91,7 @@ section .data
              db "section .text", 10
              db "global _start", 10
              db "_start:", 10
-             db "    asmx.listen 8080", 10
+             db "    asmx.listen 3000", 10
              db "    jmp route_dispatch", 10, 0
     tpl_main_len equ $ - tpl_main - 1
 
@@ -108,18 +108,19 @@ section .data
 
     tpl_mk1 db "AS      := nasm", 10
             db "LD      := ld", 10
+            db "WAT2WASM := wat2wasm", 10
             db "PKG     := ", 0
 
     tpl_mk2 db 10
             db "ASFLAGS := -f elf64 -I $(PKG) -I src", 10
             db "BUILD   := build", 10
             db "TARGET  := $(BUILD)/server", 10
-            db "WAT2WASM ?= $(HOME)/tools/wabt/bin/wat2wasm", 10
-            db "UI_SRCS := $(shell find src/ui -name '*.wat' 2>/dev/null)", 10
             db "UI_LIB  := $(PKG)/wasm/draw.wat $(PKG)/wasm/text.wat $(PKG)/wasm/widgets.wat $(PKG)/wasm/components.wat", 10, 10
             db "# Zero-maintenance: every .asm in the package and every .asm/.s under src/", 10
             db "# is picked up automatically. No Makefile edits for new folders or routes.", 10
-            db "PKG_SRCS := $(shell find $(PKG) -name '*.asm')", 10
+            db "# Exception: asmx/ui/ e a BUILD TOOL (compilador da DSL @, entry", 10
+            db "# compile.asm + modules = one assembly unit) - never in the server.", 10
+            db "PKG_SRCS := $(shell find $(PKG) -name '*.asm' ! -path '$(PKG)/ui/*')", 10
             db "APP_ASM  := $(shell find src -type f -name '*.asm')", 10
             db "APP_S    := $(shell find src -type f -name '*.s')", 10
             db "PKG_OBJS := $(PKG_SRCS:$(PKG)/%.asm=$(BUILD)/$(PKG)/%.o)", 10
@@ -129,15 +130,23 @@ section .data
             db "#   src/app/page.s -> / | src/app/sobre/page.s -> /sobre |", 10
             db "#   src/app/api/hello/route.s -> /api/hello | src/app/not-found.s -> /__not_found", 10
             db "route_path = $(if $(filter src/app/not-found.s,$1),/__not_found,$(if $(filter src/app/page.s src/app/route.s,$1),/,$(patsubst src/app/%/page.s,/%,$(patsubst src/app/%/route.s,/%,$1))))", 10, 10
-            db "all: $(TARGET) $(UI_SRCS:src/ui/%.wat=public/%.wasm)", 10, 10
-            db "# WebAssembly frontend: src/ui/*.wat -> public/*.wasm (path derives from the", 10
-            db "# file). A module = framework lib (draw/text/widgets/components) + EVERY", 10
-            db "# component in src/ui/ in one (module ...): components call each other", 10
-            db "# across files (composition, like %include in NASM)", 10
-            db "public/%.wasm: src/ui/%.wat $(UI_SRCS) $(UI_LIB) | public", 10
-            db 9, '{ echo "(module"; cat $(UI_LIB) $(UI_SRCS); echo ")"; } | $(WAT2WASM) - -o $@', 10, 10
-            db "public:", 10
-            db 9, "mkdir -p public", 10, 10
+            db "all: $(TARGET) $(UI_WASMS)", 10, 10
+            db "# WebAssembly: each @ block in a page.s becomes a .wat (ui-compile);", 10
+            db "# the page final module = framework lib + the component .wat files", 10
+            db "# + _main, linked via cat -> wat2wasm (no python). Each route .wasm", 10
+            db "# mirrors the Next.js convention (app/sobre/page.tsx):", 10
+            db "# src/app/sobre/page.s -> static/sobre/page.wasm (/sobre/page.wasm);", 10
+            db "# the root (src/app/page.s) is the exception: static/index.wasm.", 10
+            db "ui_name = $(if $(filter src/app/page.s,$1),index,$(patsubst %/page.s,%,$(patsubst src/app/%,%,$1)))", 10
+            db "ui_wasm = $(if $(filter src/app/page.s,$1),static/index.wasm,static/$(call ui_name,$1)/page.wasm)", 10
+            db "UI_WASMS := $(foreach s,$(filter %/page.s,$(APP_S)),$(call ui_wasm,$(s)))", 10, 10
+            db "$(BUILD)/%.s.wasm: $(BUILD)/%.s $(wildcard $(BUILD)/%.s.d/*.wat) $(UI_LIB)", 10
+            db 9, "@mkdir -p $(dir $@)", 10
+            db 9, "{ echo ", 34, "(module", 34, "; cat $(UI_LIB) $(wildcard $(BUILD)/$*.s.d/*.wat); echo ", 34, ")", 34, "; } | $(WAT2WASM) - -o $@", 10, 10
+            db "# static/<ui_name>[/page].wasm <- build/<page>.s.wasm (root = index.wasm)", 10
+            db "$(foreach s,$(filter %/page.s,$(APP_S)),$(eval $(call ui_wasm,$(s)): $(BUILD)/$(patsubst src/%.s,%.s.wasm,$(s)) ; @mkdir -p $$(dir $$@) && cp $$< $$@))", 10, 10
+            db "static:", 10
+            db 9, "mkdir -p static", 10, 10
             db "$(TARGET): $(OBJS)", 10
             db 9, "$(LD) -o $@ $^", 10, 10
             db "$(BUILD)/$(PKG)/%.o: $(PKG)/%.asm | $(BUILD)", 10
@@ -146,9 +155,20 @@ section .data
             db "$(BUILD)/%.o: src/%.asm | $(BUILD)", 10
             db 9, "@mkdir -p $(dir $@)", 10
             db 9, "$(AS) $(ASFLAGS) -o $@ $<", 10, 10
-            db "$(BUILD)/%.o: src/%.s | $(BUILD)", 10
+            db "# page.s @ DSL -> NASM data + .wat por componente (ui/*.asm, no python):", 10
+            db "# the @ block becomes an HTML shell (data-modules) in the page.s and a .wat in", 10
+            db "# build/<page>.s.d/. Files without @ pass through.", 10
+            db "UI_CP := $(BUILD)/tools/ui-compile", 10, 10
+            db "UI_CP_SRC := $(PKG)/ui/compile.asm $(shell find $(PKG)/ui -name '*.asm' -o -name '*.inc')", 10, 10
+            db "$(UI_CP): $(UI_CP_SRC) | $(BUILD)", 10
             db 9, "@mkdir -p $(dir $@)", 10
-            db 9, "$(AS) $(ASFLAGS) -DROUTE_PATH=", 92, 34, "$(call route_path,$<)", 92, 34, " -o $@ $<", 10, 10
+            db 9, "$(AS) $(ASFLAGS) -o $(BUILD)/tools/ui-compile.o $<", 10
+            db 9, "$(LD) -o $@ $(BUILD)/tools/ui-compile.o", 10, 10
+            db "$(BUILD)/%.s: src/%.s $(UI_CP) | $(BUILD)", 10
+            db 9, "@mkdir -p $(dir $@)", 10
+            db 9, "$(UI_CP) $< $@", 10, 10
+            db "$(BUILD)/%.o: $(BUILD)/%.s | $(BUILD)", 10
+            db 9, "$(AS) $(ASFLAGS) -DROUTE_PATH=", 92, 34, "$(call route_path,$(patsubst $(BUILD)/%.s,src/%.s,$<))", 92, 34, " -o $@ $<", 10, 10
             db "$(BUILD):", 10
             db 9, "mkdir -p $(BUILD)", 10, 10
             db "run: $(TARGET)", 10
