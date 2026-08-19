@@ -5,7 +5,9 @@
 section .data
     path_make   db "/usr/bin/make", 0
     make_str    db "make", 0
+    q_str       db "-q", 0
     argv_make   dq make_str, 0
+    argv_make_q dq make_str, q_str, 0
     path_git    db "/usr/bin/git", 0
     git_str     db "git", 0
     clone_str   db "clone", 0
@@ -16,6 +18,7 @@ section .data
     envp        dq env_path, 0
     clear_seq   db 27, '[', '2', 'J', 27, '[', 'H'   ; ANSI clear screen + cursor home
     clear_seq_len equ $ - clear_seq
+    dev_ts      dq 0, 400000000      ; nanosleep timespec: 0.4s
 
 section .bss
     wait_status resq 1
@@ -81,19 +84,56 @@ cli_git_clone:
     call cli_exec
     ret
 
-; cli_run_dev() - build, clear the console, then exec the server
-; (never returns on success)
+; cli_run_dev() - build, serve and HOT-RELOAD.
+; Spawns the server, then polls `make -q` (the Makefile knows every
+; dependency: src/**, ui modules, components). On any change it kills
+; the server, rebuilds, clears the console and respawns. A crashed
+; server is respawned too. Never returns.
 global cli_run_dev
 cli_run_dev:
+    push r12
     call cli_run_build
-    test rax, rax
-    jnz .build_failed
-    ; clear screen so only the server banner shows
-    mov rax, SYS_write
-    mov rdi, 1
-    lea rsi, [clear_seq]
-    mov rdx, clear_seq_len
+    call dev_spawn_server       ; rax = server pid
+    mov r12, rax
+.loop:
+    ; sleep 400ms (dev_ts is untouched by nanosleep)
+    lea rdi, [dev_ts]
+    mov rax, SYS_nanosleep
     syscall
+    ; server died? respawn (crash recovery)
+    mov rdi, r12
+    call dev_check_server
+    test rax, rax
+    jz .alive
+    call dev_spawn_server
+    mov r12, rax
+.alive:
+    ; anything to rebuild? make -q: 0 = up-to-date, 1 = changed, 2 = error
+    call dev_make_q
+    cmp rax, 1
+    je .rebuild
+    jmp .loop
+.rebuild:
+    mov rdi, r12
+    call dev_kill_server
+    call cli_run_build
+    call dev_spawn_server
+    mov r12, rax
+    jmp .loop
+
+; dev_make_q() -> rax = `make -q` exit code (0 up-to-date, 1 changed, 2 error)
+dev_make_q:
+    lea rdi, [path_make]
+    lea rsi, [argv_make_q]
+    call cli_exec
+    ret
+
+; dev_spawn_server() -> rax = child pid (the child execs ./build/server)
+dev_spawn_server:
+    mov rax, SYS_fork
+    syscall
+    test rax, rax
+    jnz .parent
     mov rax, SYS_execve
     lea rdi, [path_server]
     lea rsi, [argv_server]
@@ -102,6 +142,46 @@ cli_run_dev:
     mov rax, SYS_exit
     mov rdi, 127
     syscall
+.parent:
+    ret
+
+; dev_check_server(rdi = pid) -> rax = pid if dead, 0 if still alive
+dev_check_server:
+    test rdi, rdi
+    jz .dead
+    mov rax, SYS_wait4
+    lea rsi, [wait_status]
+    mov rdx, 1                  ; WNOHANG
+    xor r10, r10
+    syscall
+    test rax, rax
+    jnz .dead
+    xor rax, rax
+    ret
+.dead:
+    mov rax, -1
+    ret
+
+; dev_kill_server(rdi = pid) - SIGTERM + reap
+dev_kill_server:
+    push r12
+    mov r12, rdi
+    test r12, r12
+    jz .done
+    mov rax, SYS_kill
+    mov rdi, r12
+    mov rsi, 15                 ; SIGTERM
+    syscall
+    mov rax, SYS_wait4
+    mov rdi, r12
+    lea rsi, [wait_status]
+    xor rdx, rdx
+    xor r10, r10
+    syscall
+.done:
+    pop r12
+    ret
+
 .build_failed:
     mov rdi, rax
     mov rax, SYS_exit
