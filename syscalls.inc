@@ -1,4 +1,4 @@
-; cli/syscalls.inc - syscall numbers used by the asmx CLI (self-contained)
+; cli/syscalls.inc - syscall numbers used by the asx CLI (self-contained)
 %ifndef CLI_SYSCALLS_INC
 %define CLI_SYSCALLS_INC
 %define SYS_write    1

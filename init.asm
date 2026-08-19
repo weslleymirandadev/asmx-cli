@@ -1,5 +1,5 @@
-; cli/init.asm - asmx_init: scaffold a new project in the CWD.
-; 1) git clone <url> <name>   (the asmx framework, from GitHub by default)
+; cli/init.asm - asx_init: scaffold a new project in the CWD.
+; 1) git clone <url> <name>   (the asx framework, from GitHub by default)
 ; 2) boilerplate: src/main.asm, src/app/api/hello/route.s, Makefile
 
 %include "syscalls.inc"
@@ -15,9 +15,9 @@ section .bss
 
 section .text
 
-; asmx_init(rdi = package name, rsi = git url) -> rax = 0 ok, -1 err
-global asmx_init
-asmx_init:
+; asx_init(rdi = package name, rsi = git url) -> rax = 0 ok, -1 err
+global asx_init
+asx_init:
     push rbx
     push r12
     push r13
@@ -86,24 +86,24 @@ section .data
     path_route    db "src/app/api/hello/route.s", 0
     path_makefile db "Makefile", 0
 
-    tpl_main db "; src/main.asm - asmx app entry", 10
-             db "; (asmx.inc is pre-included by the Makefile - no %include needed)", 10, 10
+    tpl_main db "; src/main.asm - asx app entry", 10
+             db "; (asx.inc is pre-included by the Makefile - no %include needed)", 10, 10
              db "section .text", 10
              db "global _start", 10
              db "_start:", 10
-             db "    asmx.listen 3000", 10
+             db "    asx.listen 3000", 10
              db "    jmp route_dispatch", 10, 0
     tpl_main_len equ $ - tpl_main - 1
 
     tpl_route db "; src/app/api/hello/route.s", 10
-              db "; (asmx.inc is pre-included by the Makefile - no %include needed)", 10, 10
+              db "; (asx.inc is pre-included by the Makefile - no %include needed)", 10, 10
               db "section .data", 10
               db "    hello db '{" , 34, "hello" , 34, ": " , 34, "world" , 34, "}', 0", 10, 10
               db "route.get get_hello", 10, 10
               db "section .GET", 10
               db "get_hello:", 10
               db "    res.json hello", 10
-              db "    asmx.next", 10, 0
+              db "    asx.next", 10, 0
     tpl_route_len equ $ - tpl_route - 1
 
     tpl_mk1 db "AS      := nasm", 10
@@ -113,18 +113,18 @@ section .data
 
     tpl_mk2 db 10
             db "ASFLAGS := -f elf64 -I $(PKG) -I src", 10
-            db "# App files get asmx.inc pre-included by the Makefile (NASM -P):", 10
-            db "# no need to write %include ", 34, "asmx.inc", 34, " in every src file. The", 10
-            db "# framework (asmx/**) and the ui-compile tool do NOT get it", 10
+            db "# App files get asx.inc pre-included by the Makefile (NASM -P):", 10
+            db "# no need to write %include ", 34, "asx.inc", 34, " in every src file. The", 10
+            db "# framework (asx/**) and the ui-compile tool do NOT get it", 10
             db "# (they declare their own externs). Idempotent with manual includes", 10
-            db "# thanks to the %ifndef guard in asmx.inc.", 10
-            db "APP_INC := -P$(PKG)/asmx.inc", 10
+            db "# thanks to the %ifndef guard in asx.inc.", 10
+            db "APP_INC := -P$(PKG)/asx.inc", 10
             db "BUILD   := build", 10
             db "TARGET  := $(BUILD)/server", 10
             db "UI_LIB  := $(PKG)/wasm/draw.wat $(PKG)/wasm/text.wat $(PKG)/wasm/widgets.wat $(PKG)/wasm/components.wat", 10, 10
             db "# Zero-maintenance: every .asm in the package and every .asm/.s under src/", 10
             db "# is picked up automatically. No Makefile edits for new folders or routes.", 10
-            db "# Exception: asmx/ui/ e a BUILD TOOL (compilador da DSL @, entry", 10
+            db "# Exception: asx/ui/ e a BUILD TOOL (compilador da DSL @, entry", 10
             db "# compile.asm + modules = one assembly unit) - never in the server.", 10
             db "PKG_SRCS := $(shell find $(PKG) -name '*.asm' ! -path '$(PKG)/ui/*')", 10
             db "APP_ASM  := $(shell find src -type f -name '*.asm')", 10

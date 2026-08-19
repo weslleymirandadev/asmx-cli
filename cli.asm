@@ -1,31 +1,31 @@
-; cli/cli.asm - asmx CLI:
-;   asmx init [name]   scaffold a project: clone the asmx framework
+; cli/cli.asm - asx CLI:
+;   asx init [name]   scaffold a project: clone the asx framework
 ;                      (compiled-in url) + boilerplate
-;   asmx build         compile the app
-;   asmx dev           compile and run
-;   asmx               show help
+;   asx build         compile the app
+;   asx dev           compile and run
+;   asx               show help
 
 %include "syscalls.inc"
 
 extern cli_strcmp
-extern asmx_init
+extern asx_init
 extern cli_run_build
 extern cli_run_dev
 
 section .data
-    default_pkg db "asmx", 0
-    default_url db "https://github.com/weslleymirandadev/asmx.git", 0
+    default_pkg db "asx", 0
+    default_url db "https://github.com/weslleymirandadev/asx.git", 0
     cmd_init    db "init", 0
     cmd_build   db "build", 0
     cmd_dev     db "dev", 0
-    help_text   db "asmx - assembly web framework CLI", 10
+    help_text   db "asx - assembly web framework CLI", 10
                 db "usage:", 10
-                db "  asmx init [name]   create a project: clones the asmx framework", 10
+                db "  asx init [name]   create a project: clones the asx framework", 10
                 db "                     into name/ and scaffolds", 10
                 db "                     src/main.asm, src/app/api/hello/route.s, Makefile", 10
-                db "  asmx build         compile the app", 10
-                db "  asmx dev           compile and run", 10
-                db "  asmx               show this help", 10, 0
+                db "  asx build         compile the app", 10
+                db "  asx dev           compile and run", 10
+                db "  asx               show this help", 10, 0
     help_len equ $ - help_text - 1
 
 section .text
@@ -53,7 +53,7 @@ _start:
     jz .do_dev
     jmp .help
 .do_init:
-    ; name = argv[2] or "asmx"; url = compiled-in default
+    ; name = argv[2] or "asx"; url = compiled-in default
     cmp r13, 2
     jg .init_name
     lea r14, [default_pkg]
@@ -63,7 +63,7 @@ _start:
 .init_go:
     mov rdi, r14
     lea rsi, [default_url]
-    call asmx_init
+    call asx_init
     jmp .exit0
 .do_build:
     call cli_run_build

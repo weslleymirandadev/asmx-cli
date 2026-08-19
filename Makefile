@@ -1,7 +1,7 @@
 AS      := nasm
 LD      := ld
 BUILD   := build
-TARGET  := $(BUILD)/asmx
+TARGET  := $(BUILD)/asx
 
 SRCS := cli.asm fs.asm str.asm init.asm run.asm
 OBJS := $(SRCS:%.asm=$(BUILD)/%.o)
