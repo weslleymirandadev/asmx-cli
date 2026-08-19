@@ -87,7 +87,7 @@ section .data
     path_makefile db "Makefile", 0
 
     tpl_main db "; src/main.asm - asmx app entry", 10
-             db '%include "asmx.inc"', 10, 10
+             db "; (asmx.inc is pre-included by the Makefile - no %include needed)", 10, 10
              db "section .text", 10
              db "global _start", 10
              db "_start:", 10
@@ -96,7 +96,7 @@ section .data
     tpl_main_len equ $ - tpl_main - 1
 
     tpl_route db "; src/app/api/hello/route.s", 10
-              db '%include "asmx.inc"', 10, 10
+              db "; (asmx.inc is pre-included by the Makefile - no %include needed)", 10, 10
               db "section .data", 10
               db "    hello db '{" , 34, "hello" , 34, ": " , 34, "world" , 34, "}', 0", 10, 10
               db "route.get get_hello", 10, 10
@@ -113,6 +113,12 @@ section .data
 
     tpl_mk2 db 10
             db "ASFLAGS := -f elf64 -I $(PKG) -I src", 10
+            db "# App files get asmx.inc pre-included by the Makefile (NASM -P):", 10
+            db "# no need to write %include ", 34, "asmx.inc", 34, " in every src file. The", 10
+            db "# framework (asmx/**) and the ui-compile tool do NOT get it", 10
+            db "# (they declare their own externs). Idempotent with manual includes", 10
+            db "# thanks to the %ifndef guard in asmx.inc.", 10
+            db "APP_INC := -P$(PKG)/asmx.inc", 10
             db "BUILD   := build", 10
             db "TARGET  := $(BUILD)/server", 10
             db "UI_LIB  := $(PKG)/wasm/draw.wat $(PKG)/wasm/text.wat $(PKG)/wasm/widgets.wat $(PKG)/wasm/components.wat", 10, 10
@@ -154,7 +160,7 @@ section .data
             db 9, "$(AS) $(ASFLAGS) -o $@ $<", 10, 10
             db "$(BUILD)/%.o: src/%.asm | $(BUILD)", 10
             db 9, "@mkdir -p $(dir $@)", 10
-            db 9, "$(AS) $(ASFLAGS) -o $@ $<", 10, 10
+            db 9, "$(AS) $(ASFLAGS) $(APP_INC) -o $@ $<", 10, 10
             db "# page.s @ DSL -> NASM data + .wat por componente (ui/*.asm, no python):", 10
             db "# the @ block becomes an HTML shell (data-modules) in the page.s and a .wat in", 10
             db "# build/<page>.s.d/. Files without @ pass through.", 10
@@ -170,7 +176,7 @@ section .data
             db 9, "@mkdir -p $(dir $@)", 10
             db 9, "$(UI_CP) $< $@", 10, 10
             db "$(BUILD)/%.o: $(BUILD)/%.s | $(BUILD)", 10
-            db 9, "$(AS) $(ASFLAGS) -DROUTE_PATH=", 92, 34, "$(call route_path,$(patsubst $(BUILD)/%.s,src/%.s,$<))", 92, 34, " -o $@ $<", 10, 10
+            db 9, "$(AS) $(ASFLAGS) $(APP_INC) -DROUTE_PATH=", 92, 34, "$(call route_path,$(patsubst $(BUILD)/%.s,src/%.s,$<))", 92, 34, " -o $@ $<", 10, 10
             db "$(BUILD):", 10
             db 9, "mkdir -p $(BUILD)", 10, 10
             db "run: $(TARGET)", 10
