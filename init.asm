@@ -133,15 +133,15 @@ section .data
             db "APP_OBJS := $(APP_ASM:src/%.asm=$(BUILD)/%.o) $(APP_S:src/%.s=$(BUILD)/%.o)", 10
             db "OBJS     := $(PKG_OBJS) $(APP_OBJS)", 10, 10
             db "# Next.js-style routing: route path derives from file location", 10
-            db "#   src/app/page.s -> / | src/app/sobre/page.s -> /sobre |", 10
+            db "#   src/app/page.s -> / | src/app/about/page.s -> /about |", 10
             db "#   src/app/api/hello/route.s -> /api/hello | src/app/not-found.s -> /__not_found", 10
             db "route_path = $(if $(filter src/app/not-found.s,$1),/__not_found,$(if $(filter src/app/page.s src/app/route.s,$1),/,$(patsubst src/app/%/page.s,/%,$(patsubst src/app/%/route.s,/%,$1))))", 10, 10
             db "all: $(TARGET) $(UI_WASMS)", 10, 10
             db "# WebAssembly: each @ block in a page.s becomes a .wat (ui-compile);", 10
             db "# the page final module = framework lib + the component .wat files", 10
             db "# + _main, linked via cat -> wat2wasm (no python). Each route .wasm", 10
-            db "# mirrors the Next.js convention (app/sobre/page.tsx):", 10
-            db "# src/app/sobre/page.s -> static/sobre/page.wasm (/sobre/page.wasm);", 10
+            db "# mirrors the Next.js convention (app/about/page.tsx):", 10
+            db "# src/app/about/page.s -> static/about/page.wasm (/about/page.wasm);", 10
             db "# the root (src/app/page.s) is the exception: static/index.wasm.", 10
             db "ui_name = $(if $(filter src/app/page.s,$1),index,$(patsubst %/page.s,%,$(patsubst src/app/%,%,$1)))", 10
             db "ui_wasm = $(if $(filter src/app/page.s,$1),static/index.wasm,static/$(call ui_name,$1)/page.wasm)", 10
