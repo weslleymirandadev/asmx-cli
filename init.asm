@@ -122,7 +122,7 @@ section .data
             db "# compile.asm + modules = one assembly unit) - never in the server.", 10
             db "PKG_SRCS := $(shell find $(PKG) -name '*.asm' ! -path '$(PKG)/ui/*')", 10
             db "APP_ASM  := $(shell find src -type f -name '*.asm')", 10
-            db "APP_S    := $(shell find src -type f -name '*.s')", 10
+            db "APP_S    := $(shell find src -type f -name '*.s' ! -path 'src/components/*')", 10
             db "PKG_OBJS := $(PKG_SRCS:$(PKG)/%.asm=$(BUILD)/$(PKG)/%.o)", 10
             db "APP_OBJS := $(APP_ASM:src/%.asm=$(BUILD)/%.o) $(APP_S:src/%.s=$(BUILD)/%.o)", 10
             db "OBJS     := $(PKG_OBJS) $(APP_OBJS)", 10, 10
