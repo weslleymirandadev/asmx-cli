@@ -100,11 +100,14 @@ cli_run_dev:
     lea rdi, [dev_ts]
     mov rax, SYS_nanosleep
     syscall
-    ; server died? respawn (crash recovery)
+    ; server died? respawn (crash recovery) - except when it exited with
+    ; code 1 (no free port found): propagate the failure and stop
     mov rdi, r12
     call dev_check_server
     test rax, rax
     jz .alive
+    cmp rax, 2
+    je dev_give_up
     call dev_spawn_server
     mov r12, rax
 .alive:
@@ -145,7 +148,9 @@ dev_spawn_server:
 .parent:
     ret
 
-; dev_check_server(rdi = pid) -> rax = pid if dead, 0 if still alive
+; dev_check_server(rdi = pid) -> rax = 0 alive, 1 dead (respawn),
+; 2 dead with exit code 1 (no free port - do NOT respawn, propagate)
+global dev_check_server        ; exposed for the dev_check test driver
 dev_check_server:
     test rdi, rdi
     jz .dead
@@ -155,12 +160,31 @@ dev_check_server:
     xor r10, r10
     syscall
     test rax, rax
-    jnz .dead
-    xor rax, rax
+    jnz .got_status
+    xor rax, rax                ; still alive
+    ret
+.got_status:
+    mov rax, [wait_status]
+    shr rax, 8
+    and rax, 0xFF
+    cmp rax, 1
+    je .fatal
+    mov rax, 1                  ; dead - respawn
+    ret
+.fatal:
+    mov rax, 2                  ; dead with exit 1 - give up
     ret
 .dead:
-    mov rax, -1
+    mov rax, 1
     ret
+
+; dev_give_up() - the server exited with code 1 (no free port up to the
+; retry ceiling): the message was already printed by the server, stop
+; instead of respawning it forever
+dev_give_up:
+    mov rax, SYS_exit
+    mov rdi, 1
+    syscall
 
 ; dev_kill_server(rdi = pid) - SIGTERM + reap
 dev_kill_server:
