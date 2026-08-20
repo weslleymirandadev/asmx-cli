@@ -22,7 +22,7 @@ section .data
                 db "usage:", 10
                 db "  asx init [name]   create a project: clones the asx framework", 10
                 db "                     into name/ and scaffolds", 10
-                db "                     src/main.asm, src/app/api/hello/route.s, Makefile", 10
+                db "                     src/main.asx, src/app/api/hello/route.asx, Makefile", 10
                 db "  asx build         compile the app", 10
                 db "  asx dev           compile and run", 10
                 db "  asx               show this help", 10, 0
