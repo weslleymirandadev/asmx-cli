@@ -166,12 +166,13 @@ section .data
             db "# is picked up automatically. No Makefile edits for new folders or routes.", 10
             db "# Exception: asx/ui/ e a BUILD TOOL (compilador da DSL @, entry", 10
             db "# compile.asm + modules = one assembly unit) - never in the server.", 10
+            db "# App sources under src/ are ONLY .asx - stray .s/.asm files there are", 10
+            db "# NOT app code (ui-compile artifacts / helpers) and must never be linked.", 10
             db "PKG_SRCS := $(shell find $(PKG) -name '*.asm' ! -path '$(PKG)/ui/*' ! -path '$(PKG)/tests/*')", 10
-            db "APP_ASM  := $(shell find src -type f -name '*.asm')", 10
             db "APP_S    := $(shell find src -type f -name '*.asx' ! -path 'src/components/*' ! -name 'middleware.asx')", 10
             db "MW_S     := $(wildcard src/middleware.asx)", 10
             db "PKG_OBJS := $(PKG_SRCS:$(PKG)/%.asm=$(BUILD)/$(PKG)/%.o)", 10
-            db "APP_OBJS := $(APP_ASM:src/%.asm=$(BUILD)/%.o) $(APP_S:src/%.asx=$(BUILD)/%.o) $(MW_S:src/%.asx=$(BUILD)/%.o)", 10
+            db "APP_OBJS := $(APP_S:src/%.asx=$(BUILD)/%.o) $(MW_S:src/%.asx=$(BUILD)/%.o)", 10
             db "OBJS     := $(PKG_OBJS) $(APP_OBJS)", 10, 10
             db "# Next.js-style routing: route path derives from file location", 10
             db "#   src/app/page.asx -> / | src/app/about/page.asx -> /about |", 10
@@ -199,9 +200,6 @@ section .data
             db "$(BUILD)/$(PKG)/%.o: $(PKG)/%.asm | $(BUILD)", 10
             db 9, "@mkdir -p $(dir $@)", 10
             db 9, "$(AS) $(ASFLAGS) -o $@ $<", 10, 10
-            db "$(BUILD)/%.o: src/%.asm | $(BUILD)", 10
-            db 9, "@mkdir -p $(dir $@)", 10
-            db 9, "$(AS) $(ASFLAGS) $(APP_INC) -o $@ $<", 10, 10
             db "# src/middleware.asx - the middleware (Next.js middleware.ts style).", 10
             db "# NOT a route: no ROUTE_PATH, just assembles into the `middleware` linker", 10
             db "# section the router scans before dispatching.", 10
