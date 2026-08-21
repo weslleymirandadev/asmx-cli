@@ -46,6 +46,10 @@ asx_init:
     lea rsi, [tpl_route]
     mov rdx, tpl_route_len
     call cli_write_file
+    lea rdi, [path_page]
+    lea rsi, [tpl_page]
+    mov rdx, tpl_page_len
+    call cli_write_file
     lea rdi, [path_mw]
     lea rsi, [tpl_mw]
     mov rdx, tpl_mw_len
@@ -88,6 +92,7 @@ section .data
     dir_src_hello db "src/app/api/hello", 0
     path_main     db "src/main.asx", 0
     path_route    db "src/app/api/hello/route.asx", 0
+    path_page     db "src/app/page.asx", 0
     path_mw       db "src/middleware.asx", 0
     path_makefile db "Makefile", 0
 
@@ -110,6 +115,27 @@ section .data
               db "    res.json hello", 10
               db "    asx.next", 10, 0
     tpl_route_len equ $ - tpl_route - 1
+
+    tpl_page db "; src/app/page.asx", 10
+             db "; GET / -> home page, server-side rendered.", 10, 10
+             db "section .data", 10
+             db "    index_content:", 10
+             db "        @theme bg #0b0e14 text #e2e8f0 accent #f97316", 10
+             db "        @main min-h-screen p-8", 10
+             db "            state count: int = 0", 10
+             db "            @h1 text-4xl font-extrabold text-orange-500:", 10
+             db "                ", 34, "Hello from Assembly", 34, 10
+             db "            @p text-gray-400 mt-4:", 10
+             db "                ", 34, "Server in Assembly. UI in WebAssembly.", 34, 10
+             db "            @button bg-orange-500 mt-6 p-3 rounded-xl font-bold onclick=", 34, "count++", 34, ":", 10
+             db "                ", 34, "Clicked {count} times", 34, 10
+             db "        @end", 10, 10
+             db "page get_index", 10, 10
+             db "section .SERVER", 10
+             db "get_index:", 10
+             db "    res.content index_content", 10
+             db "    asx.next", 10, 0
+    tpl_page_len equ $ - tpl_page - 1
 
     tpl_mw db "; src/middleware.asx", 10
            db "; Pass-through middleware (runs before routing for every request).", 10
