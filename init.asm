@@ -131,6 +131,9 @@ section .data
 
     tpl_page db "; src/app/page.asx", 10
              db "; GET / -> home page, server-side rendered.", 10, 10
+             db "; Components are imported at the TOP of the file", 10
+             db "; (%include-style, column 0) and used with @@Name:", 10
+             db ";   @import Header from ", 34, "@/components/Header", 34, 10, 10
              db "section .data", 10
              db "    index_content:", 10
              db "        @theme bg #0b0e14 text #e2e8f0 accent #f97316", 10
@@ -210,7 +213,15 @@ section .data
             db "#   src/app/page.asx -> / | src/app/about/page.asx -> /about |", 10
             db "#   src/app/api/hello/route.asx -> /api/hello | src/app/not-found.asx -> /__not_found", 10
             db "route_path = $(if $(filter src/app/not-found.asx,$1),/__not_found,$(if $(filter src/app/page.asx src/app/route.asx,$1),/,$(patsubst src/app/%/page.asx,/%,$(patsubst src/app/%/route.asx,/%,$1))))", 10, 10
-            db "all: $(TARGET) $(UI_WASMS)", 10, 10
+            db "all: $(TARGET) $(UI_WASMS) static/_asx/error-overlay.wasm", 10, 10
+            db "# framework-internal build-error overlay (Next.js style): compiled from", 10
+            db "# asx/error-overlay.asx into a standalone wasm the glue mounts when", 10
+            db "# /_asx/error returns 200 (the dev loop writes build/asx-error.txt).", 10
+            db "$(BUILD)/error-overlay.s: $(PKG)/error-overlay.asx $(UI_CP) | $(BUILD)", 10
+            db 9, "$(UI_CP) $< $@", 10
+            db "static/_asx/error-overlay.wasm: $(BUILD)/error-overlay.s.wasm | static", 10
+            db 9, "@mkdir -p $(dir $@)", 10
+            db 9, "cp $< $@", 10, 10
             db "# WebAssembly: each @ block in a page.asx becomes a .wat (ui-compile);", 10
             db "# the page final module = framework lib + the component .wat files", 10
             db "# + _main, linked via cat -> wat2wasm (no python). Each route .wasm", 10
