@@ -21,9 +21,6 @@ section .data
     clear_seq   db 27, '[', '2', 'J', 27, '[', 'H'   ; ANSI clear screen + cursor home
     clear_seq_len equ $ - clear_seq
     dev_ts      dq 0, 400000000      ; nanosleep timespec: 0.4s
-    dev_ts_slow dq 1, 200000000      ; 1.2s while a build is failing
-                                     ; (tv_nsec MUST be < 1e9 or nanosleep
-                                     ; returns -EINVAL instantly!)
     err_file_path db "build/asx-error.txt", 0
     sigchld_mask dq 0x10000        ; bit 16 = SIGCHLD (17)
 
@@ -37,7 +34,6 @@ section .bss
     build_err_len resq 1
     build_err_last resb 8192
     build_err_last_len resq 1
-    build_failed resq 1        ; 1 = last build failed (don't respawn)
     sleep_ts     resq 2        ; scratch timespec for nanosleep
 
 section .text
@@ -186,10 +182,8 @@ cli_git_clone:
 ; dependency: src/**, ui modules, components). On any change it
 ; rebuilds FIRST; only if the build succeeds does it kill the server
 ; and respawn (a crashed server is respawned too). A FAILED build
-; keeps the previous server running (it still serves the last good
-; build), prints the formatted error ONCE and writes it to
-; build/asx-error.txt so the frontend can show an overlay. Never
-; returns.
+; prints the error and EXITS immediately (fail-fast, no retry loop) -
+; the dev fixes the source and runs `asx dev` again.
 global cli_run_dev
 cli_run_dev:
     push r12
@@ -200,20 +194,16 @@ cli_run_dev:
     mov r12, rax
     jmp .loop
 .initial_fail:
-    ; the very first build failed: no server to keep, write the error
-    ; and keep polling until it compiles
-    xor r12, r12                ; no server pid
-    mov qword [build_failed], 1
+    ; the very first build failed: print the error and die (no server
+    ; was spawned yet, so nothing to kill)
     call dev_show_error
+    mov rax, SYS_exit
+    mov rdi, 1
+    syscall
 .loop:
-    ; sleep (fast 0.4s while healthy, slow 1.2s while failing).
-    ; SIGCHLD from the make child interrupts nanosleep with EINTR every
-    ; time (the pending signal hits on the next syscall), so SIGCHLD is
-    ; blocked around the sleep and unblocked after.
+    ; sleep 400ms (SIGCHLD from the make child interrupts nanosleep with
+    ; EINTR, so SIGCHLD is blocked around the sleep and unblocked after)
     lea rsi, [dev_ts]
-    cmp qword [build_failed], 0
-    je .load_ts
-    lea rsi, [dev_ts_slow]
 .load_ts:
     lea rdi, [sleep_ts]         ; dst
     mov rdx, 16
@@ -260,7 +250,6 @@ cli_run_dev:
     test rax, rax
     jnz .build_failed
     ; build OK: clear the error file, kill + respawn the server
-    mov qword [build_failed], 0
     lea rdi, [err_file_path]
     call dev_unlink
     mov rdi, r12
@@ -269,10 +258,14 @@ cli_run_dev:
     mov r12, rax
     jmp .loop
 .build_failed:
-    mov qword [build_failed], 1
-    ; keep the current server running (last good build still served)
+    ; FAIL-FAST: print the error, kill the server (last good build is no
+    ; longer trustworthy - the source is broken) and exit. No retry loop.
     call dev_show_error
-    jmp .loop
+    mov rdi, r12
+    call dev_kill_server
+    mov rax, SYS_exit
+    mov rdi, 1
+    syscall
 
 ; dev_show_error() - prints build_err_buf to stderr only if it differs
 ; from the last shown error, and writes build/asx-error.txt for the
@@ -433,8 +426,3 @@ dev_kill_server:
 .done:
     pop r12
     ret
-
-.build_failed:
-    mov rdi, rax
-    mov rax, SYS_exit
-    syscall
