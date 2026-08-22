@@ -215,9 +215,9 @@ section .data
             db "route_path = $(if $(filter src/app/not-found.asx,$1),/__not_found,$(if $(filter src/app/page.asx src/app/route.asx,$1),/,$(patsubst src/app/%/page.asx,/%,$(patsubst src/app/%/route.asx,/%,$1))))", 10, 10
             db "all: $(TARGET) $(UI_WASMS) static/_asx/error-overlay.wasm", 10, 10
             db "# framework-internal build-error overlay (Next.js style): compiled from", 10
-            db "# asx/error-overlay.asx into a standalone wasm the glue mounts when", 10
+            db "# asx/ui/error-overlay.asx into a standalone wasm the glue mounts when", 10
             db "# /_asx/error returns 200 (the dev loop writes build/asx-error.txt).", 10
-            db "$(BUILD)/error-overlay.s: $(PKG)/error-overlay.asx $(UI_CP) | $(BUILD)", 10
+            db "$(BUILD)/error-overlay.s: $(PKG)/ui/error-overlay.asx $(UI_CP) | $(BUILD)", 10
             db 9, "$(UI_CP) $< $@", 10
             db "static/_asx/error-overlay.wasm: $(BUILD)/error-overlay.s.wasm | static", 10
             db 9, "@mkdir -p $(dir $@)", 10
