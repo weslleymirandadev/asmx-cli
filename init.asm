@@ -29,6 +29,10 @@ asx_init:
     ; boilerplate dirs
     lea rdi, [dir_src_hello]
     call cli_mkdir_p        ; src/app/api/hello
+    lea rdi, [dir_pub_images]
+    call cli_mkdir_p        ; static/public/images
+    lea rdi, [dir_pub_videos]
+    call cli_mkdir_p        ; static/public/videos
 
     ; fetch the framework: git clone <url> <name>
     mov rdi, r13
@@ -76,6 +80,12 @@ asx_init:
     lea rsi, [path_buf]
     call cli_write_file
 
+    ; public/README.md - documents the public-inside-static convention
+    lea rdi, [path_pub_readme]
+    lea rsi, [tpl_pub_readme]
+    mov rdx, tpl_pub_readme_len
+    call cli_write_file
+
     xor rax, rax
     jmp .done
 .err:
@@ -90,11 +100,14 @@ asx_init:
 
 section .data
     dir_src_hello db "src/app/api/hello", 0
+    dir_pub_images db "static/public/images", 0
+    dir_pub_videos db "static/public/videos", 0
     path_main     db "src/main.asx", 0
     path_route    db "src/app/api/hello/route.asx", 0
     path_page     db "src/app/page.asx", 0
     path_mw       db "src/middleware.asx", 0
     path_makefile db "Makefile", 0
+    path_pub_readme db "static/public/README.md", 0
 
     tpl_main db "; src/main.asx - asx app entry", 10
              db "; (asx.inc is pre-included by the Makefile - no %include needed)", 10, 10
@@ -127,6 +140,7 @@ section .data
              db "                ", 34, "Hello from Assembly", 34, 10
              db "            @p text-gray-400 mt-4:", 10
              db "                ", 34, "Server in Assembly. UI in WebAssembly.", 34, 10
+             db "            @img src=", 34, "/images/foto.png", 34, " alt=", 34, "foto", 34, " w-64 h-64 rounded-xl mt-6", 10
              db "            @button bg-orange-500 mt-6 p-3 rounded-xl font-bold onclick=", 34, "count++", 34, ":", 10
              db "                ", 34, "Clicked {count} times", 34, 10
              db "        @end", 10, 10
@@ -145,6 +159,24 @@ section .data
            db "mw_pass:", 10
            db "    mw.next", 10, 0
     tpl_mw_len equ $ - tpl_mw - 1
+
+    tpl_pub_readme db "# static/public/ - static assets (Next.js style)", 10
+                   db 10
+                   db "This folder lives INSIDE static/ (next to the route wasm", 10
+                   db "modules). Files here are served at the URL matching their", 10
+                   db "path, no route needed:", 10
+                   db 10
+                   db "  static/public/images/foto.png  ->  /images/foto.png", 10
+                   db "  static/public/videos/clip.mp4   ->  /videos/clip.mp4", 10
+                   db 10
+                   db "Use them in pages with @img / @video:", 10
+                   db 10
+                   db "  @img src=", 34, "/images/foto.png", 34, " alt=", 34, "Foto", 34, " w-64 h-64", 10
+                   db "  @video src=", 34, "/videos/clip.mp4", 34, " controls", 10
+                   db 10
+                   db "Supported types: png jpg jpeg gif webp svg avif ico /", 10
+                   db "mp4 webm ogg mov.", 10, 0
+    tpl_pub_readme_len equ $ - tpl_pub_readme - 1
 
     tpl_mk1 db "AS      := nasm", 10
             db "LD      := ld", 10
@@ -169,7 +201,7 @@ section .data
             db "# App sources under src/ are ONLY .asx - stray .s/.asm files there are", 10
             db "# NOT app code (ui-compile artifacts / helpers) and must never be linked.", 10
             db "PKG_SRCS := $(shell find $(PKG) -name '*.asm' ! -path '$(PKG)/ui/*' ! -path '$(PKG)/tests/*')", 10
-            db "APP_S    := $(shell find src -type f -name '*.asx' ! -path 'src/components/*' ! -name 'middleware.asx')", 10
+            db "APP_S    := $(shell find src -type f -name '*.asx' ! -path '*/components/*' ! -name 'middleware.asx')", 10
             db "MW_S     := $(wildcard src/middleware.asx)", 10
             db "PKG_OBJS := $(PKG_SRCS:$(PKG)/%.asm=$(BUILD)/$(PKG)/%.o)", 10
             db "APP_OBJS := $(APP_S:src/%.asx=$(BUILD)/%.o) $(MW_S:src/%.asx=$(BUILD)/%.o)", 10
@@ -215,8 +247,10 @@ section .data
             db 9, "@mkdir -p $(dir $@)", 10
             db 9, "$(AS) $(ASFLAGS) -o $(BUILD)/tools/ui-compile.o $<", 10
             db 9, "$(LD) -o $@ $(BUILD)/tools/ui-compile.o", 10, 10
-            db "# @comp components (src/components/*.asx): any change rebuilds every page.asx", 10
-            db "COMP_SRCS := $(wildcard src/components/*.asx)", 10
+            db "# @comp components (any */components/*.asx, any depth): any change", 10
+            db "# rebuilds every page.asx. The ui-compile resolves them by name", 10
+            db "# (@@Name) or by explicit path (@import Name from ", 34, "@/components/ui/Button", 34, ").", 10
+            db "COMP_SRCS := $(shell find src -path '*/components/*' -name '*.asx')", 10
             db "$(BUILD)/%.s: src/%.asx $(UI_CP) $(COMP_SRCS) | $(BUILD)", 10
             db 9, "@mkdir -p $(dir $@)", 10
             db 9, "$(UI_CP) $< $@", 10, 10
