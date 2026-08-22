@@ -11,4 +11,9 @@
 %define SYS_nanosleep 35
 %define SYS_mkdir    83
 %define SYS_openat   257
+%define SYS_pipe     22
+%define SYS_read     0
+%define SYS_dup2     33
+%define SYS_unlink   87
+%define SYS_rt_sigprocmask 14
 %endif
